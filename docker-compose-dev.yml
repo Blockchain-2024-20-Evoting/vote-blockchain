@@ -1,14 +1,16 @@
+version: '3.8'
 services:
-  # ganachecli: simulated test rpc on dev environment
+  # Ganache: contenedor que ejecuta Ganache CLI
   ganache-cli:
     container_name: ganache-cli
     build:
       context: ./ganache
     ports:
       - 8545:8545
+    networks:
+      - blockchain
 
-  # truffle-suite
-  # volumes are used here to enable hot editing :) Nice trick!
+  # Truffle: contenedor que ejecuta Truffle
   truffle-vote:
     container_name: truffle-vote
     build:
@@ -27,3 +29,9 @@ services:
     tty: true
     volumes:
       - ./truffle-vote/client/src:/client/src
+    networks:
+      - blockchain
+
+networks:
+  blockchain:
+    driver: bridge
