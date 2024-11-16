@@ -1,24 +1,28 @@
-version: '3.8'
+version: "3.8"
 
 services:
+  container_name: ganache-server
   ganache-server:
     build:
-      context: ./ganache
+      context: ./ganache-server
     environment:
       - HOST=${HOST}
       - PORT=${PORT}
       - MNEMONIC=${MNEMONIC}
       - GAS_LIMIT=${GAS_LIMIT}
       - NETWORK_ID=${NETWORK_ID}
-    networks:
-      - evoting
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -X POST --data '{\"jsonrpc\":\"2.0\",\"method\":\"net_version\",\"params\":[],\"id\":1}' localhost:${PORT} || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          'curl -sf -X POST --data ''{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}'' localhost:${PORT} || exit 1',
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
 
   truffle-vote:
+    container_name: truffle-vote
     build:
       context: ./truffle-vote
     depends_on:
@@ -34,9 +38,3 @@ services:
              truffle test &&
              truffle migrate"
     tty: true
-    networks:
-      - evoting
-
-networks:
-  evoting:
-    driver: bridge
