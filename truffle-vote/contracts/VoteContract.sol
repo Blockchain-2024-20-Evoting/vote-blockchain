@@ -1,43 +1,67 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.6;
 
 contract VoteContract {
-    address public owner; // Variable para almacenar la dirección del propietario
-    mapping(address => bool) public hasVoted;
-    mapping(string => uint) public votes;
+    // Mapeo de si un votante ya ha votado en una elección
+    mapping(uint256 => mapping(uint256 => bool)) private hasVoted; // electionId -> studentId -> hasVoted
+    // Mapeo de conteo de votos por candidato en cada elección
+    mapping(uint256 => mapping(uint256 => uint256)) private voteCounts; // electionId -> candidateId -> voteCount
+    // Mapeo de si la elección está activa o no
 
-    // Modificador que restringe el acceso a solo el propietario
-    modifier onlyOwner() {
+    // Dirección del administrador (la cuenta que despliega el contrato)
+    address public admin;
+
+    // Eventos
+    event VoteCast(uint256 electionId, uint256 candidateId, uint256 studentId);
+
+    // Modificadores
+    modifier onlyAdmin() {
         require(
-            msg.sender == owner,
-            "No tienes permiso para realizar esta accion."
+            msg.sender == admin,
+            "Solo el administrador puede ejecutar esta funcion"
         );
         _;
     }
 
-    // Constructor que asigna la cuenta que despliega el contrato como owner
+    // Constructor que establece la dirección del administrador
     constructor() {
-        owner = msg.sender;
+        admin = msg.sender;
     }
 
-    // Función para votar, accesible solo para el propietario
-    function vote(string memory candidate) public onlyOwner {
-        votes[candidate]++;
+    // Función para votar en una elección
+    function vote(
+        uint256 electionId,
+        uint256 candidateId,
+        uint256 studentId
+    ) public onlyAdmin{
+        // Verificar que el votante no haya votado aún
+        require(!hasVoted[electionId][studentId], "Ya has votado en esta eleccion");
+
+        // Marcar que este votante ya ha votado en esta elección
+        hasVoted[electionId][studentId] = true;
+        // Incrementar el conteo de votos del candidato en la elección
+        voteCounts[electionId][candidateId]++;
+
+        // Emitir un evento de voto
+        emit VoteCast(electionId, candidateId, studentId);
     }
 
-    // Función para obtener los votos de un candidato
-    function getVotes(string memory candidate) public view returns (uint) {
-        return votes[candidate];
+    // Función para obtener el conteo de votos de un candidato en una elección
+    function getVoteCount(uint256 electionId, uint256 candidateId)
+        public
+        view
+        returns (uint256)
+     {
+        return voteCounts[electionId][candidateId];
     }
 
-    // Función para obtener la dirección del creador del contrato
-    function getCreator() public view returns (address) {
-        return owner;
+  // Función para validar si un estudiante ya votó en una elección
+    function hasStudentVoted(uint256 electionId, uint256 studentId)
+        public
+        view
+        returns (bool)
+    {
+        return hasVoted[electionId][studentId];
     }
 
-    // Función para retirar la propiedad (opcional)
-    function transferOwnership(address newOwner) public onlyOwner {
-        require(newOwner != address(0), "Direccion invalida.");
-        owner = newOwner;
-    }
 }
