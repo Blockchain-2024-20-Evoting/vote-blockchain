@@ -1,13 +1,21 @@
-# Install Node.js and Truffle
-FROM node:20
+# Base ligera
+FROM node:20-alpine
 
-# Install Truffle
-RUN npm install -g truffle
-RUN npm config set bin-links false
+# Establecer directorio de trabajo
+WORKDIR /app
 
-# Move Contract Files
+# Instalar Truffle
+RUN npm install -g truffle \
+    && npm config set bin-links false
+
+# Copiar contratos y archivos necesarios
 COPY contracts ./contracts
 COPY migrations ./migrations
-COPY test ./test
 COPY truffle-config.js ./truffle-config.js
 
+# Preinstalar dependencias si existen
+COPY package.json package-lock.json ./
+RUN npm install
+
+# Comando por defecto
+CMD ["truffle", "compile"]

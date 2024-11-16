@@ -1,22 +1,31 @@
 version: '3.8'
+
 services:
-  # Ganache: contenedor que ejecuta Ganache CLI
-  ganache-cli:
-    container_name: ganache-cli
+  ganache-server:
     build:
       context: ./ganache
-    ports:
-      - 8545:8545
+    environment:
+      - HOST=${HOST}
+      - PORT=${PORT}
+      - MNEMONIC=${MNEMONIC}
+      - GAS_LIMIT=${GAS_LIMIT}
+      - NETWORK_ID=${NETWORK_ID}
     networks:
-      - blockchain
-
-  # Truffle: contenedor que ejecuta Truffle
-  truffle-vote:
-    container_name: truffle-vote
-    build:
-      context: truffle-vote
+      - evoting
     healthcheck:
-      test: curl -sf -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' localhost:8545
+      test: ["CMD-SHELL", "curl -sf -X POST --data '{\"jsonrpc\":\"2.0\",\"method\":\"net_version\",\"params\":[],\"id\":1}' localhost:${PORT} || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  truffle-vote:
+    build:
+      context: ./truffle-vote
+    depends_on:
+      ganache-server:
+        condition: service_healthy
+    healthcheck:
+      test: curl -sf -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' ganache-server:8545
       interval: 5s
       timeout: 5s
       retries: 5
@@ -24,14 +33,10 @@ services:
       sh -c "truffle compile &&
              truffle test &&
              truffle migrate"
-    ports:
-      - 3000:3000
     tty: true
-    volumes:
-      - ./truffle-vote/client/src:/client/src
     networks:
-      - blockchain
+      - evoting
 
 networks:
-  blockchain:
+  evoting:
     driver: bridge

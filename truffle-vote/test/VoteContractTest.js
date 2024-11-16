@@ -1,38 +1,62 @@
 const VoteContract = artifacts.require("VoteContract");
 
 contract("VoteContract", (accounts) => {
-  let voteInstance;
-  const owner = accounts[0];
-  const candidate = "Alice";
+  let voteContract;
 
+  const admin = accounts[0]; // Usamos la cuenta 0 para todas las pruebas
+  const student1 = accounts[0]; // Usamos la cuenta 0 como estudiante también
+  const electionId1 = 1;
+  const electionId2 = 2;
+  const candidateId1 = 1;
+  const candidateId2 = 2;
+
+  // Antes de cada prueba, desplegamos el contrato
   beforeEach(async () => {
-    voteInstance = await VoteContract.new({ from: owner });
+    voteContract = await VoteContract.new({ from: admin });
   });
 
-  it("debería desplegar el contrato y asignar el propietario correctamente", async () => {
-    const contractOwner = await voteInstance.owner();
-    assert.equal(contractOwner, owner, "El propietario debería ser el que desplegó el contrato.");
+  // Test de que un voto se cuenta correctamente
+  it("debería contar un voto para un candidato", async () => {
+    // Votar por un candidato usando la cuenta 0 en la elección 1
+    await voteContract.vote(electionId1, candidateId1, student1, { from: student1 });
+
+    // Verificar el conteo de votos
+    const voteCount = await voteContract.getVoteCount(electionId1, candidateId1);
+
+    // El conteo de votos debe ser 1
+    assert.equal(voteCount.toString(), "1", "El conteo de votos no es correcto");
   });
 
-  it("debería permitir al propietario votar por un candidato", async () => {
-    await voteInstance.vote(candidate, { from: owner });
-    const votes = await voteInstance.getVotes(candidate);
-    assert.equal(votes.toNumber(), 1, "El candidato debería tener 1 voto.");
-  });
+  // Test de que un votante no puede votar más de una vez en la misma elección
+  it("no debería permitir que un estudiante vote más de una vez en la misma elección", async () => {
+    // Votar por un candidato en la elección 1
+    await voteContract.vote(electionId1, candidateId1, student1, { from: student1 });
 
-  it("no debería permitir que otra cuenta vote", async () => {
+    // Intentar votar de nuevo en la misma elección (debe fallar)
     try {
-      await voteInstance.vote(candidate, { from: accounts[1] });
-      assert.fail("Debería fallar porque solo el propietario puede votar.");
+      await voteContract.vote(electionId1, candidateId1, student1, { from: student1 });
+      assert.fail("El estudiante debería haber sido rechazado al intentar votar más de una vez en la misma elección");
     } catch (error) {
-      assert.include(error.message, "No tienes permiso para realizar esta accion.", "El error debería incluir la restricción de solo propietario.");
+      assert(error.message.includes("Ya has votado en esta eleccion"), "El mensaje de error no es el esperado");
     }
   });
 
-  it("debería obtener el número correcto de votos de un candidato", async () => {
-    await voteInstance.vote(candidate, { from: owner });
-    await voteInstance.vote(candidate, { from: owner });
-    const votes = await voteInstance.getVotes(candidate);
-    assert.equal(votes.toNumber(), 2, "El candidato debería tener 2 votos.");
+  // Test de que el conteo de votos aumenta correctamente por candidato y por elección diferente
+  it("debería contar los votos para diferentes candidatos en diferentes elecciones", async () => {
+    // Votar por el primer candidato en la elección 1
+    await voteContract.vote(electionId1, candidateId1, student1, { from: student1 });
+
+    // Votar por el segundo candidato en la elección 2
+    await voteContract.vote(electionId2, candidateId2, student1, { from: student1 });
+
+    // Verificar los conteos de votos en las diferentes elecciones
+    const voteCount1 = await voteContract.getVoteCount(electionId1, candidateId1);
+    const voteCount2 = await voteContract.getVoteCount(electionId2, candidateId2);
+
+    // El primer candidato de la elección 1 debería tener 1 voto
+    assert.equal(voteCount1.toString(), "1", "El conteo de votos del primer candidato en la elección 1 no es correcto");
+
+    // El segundo candidato de la elección 2 debería tener 1 voto
+    assert.equal(voteCount2.toString(), "1", "El conteo de votos del segundo candidato en la elección 2 no es correcto");
   });
 });
